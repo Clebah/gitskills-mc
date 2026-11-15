@@ -1,0 +1,17 @@
+# Data and outputs (large / regenerable)
+data/raw/*
+data/processed/*
+!data/**/.gitkeep
+results/figures/*
+results/tables/*
+!results/**/.gitkeep
+*.db
+*.zip
+*.parquet
+
+# Python
+__pycache__/
+*.egg-info/
+.venv/
+.pytest_cache/
+.ipynb_checkpoints/
