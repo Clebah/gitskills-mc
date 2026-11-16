@@ -24,7 +24,9 @@ def connect(path: Path | str | None = None) -> Iterator[sqlite3.Connection]:
         raise FileNotFoundError(
             f"Database not found at {p}. Run `make sample` or set GITSKILLS_DB."
         )
-    conn = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
+    # immutable=1: the release file is read-only; mode=ro fails on it ("unable to
+    # open database file") because SQLite tries to create journal/WAL files.
+    conn = sqlite3.connect(f"file:{p}?immutable=1", uri=True)
     try:
         yield conn
     finally:
