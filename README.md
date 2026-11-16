@@ -117,14 +117,23 @@ most-copied member?
 variants add at least one risk category absent from the most-copied version
 (name-based heuristic; needs validation).
 
-### Recommended focus
+### Paper plan
 
-A 4-page paper fits 2–3 well-executed RQs. The most original combination, and
-the one that best uses the dataset's distinctive feature (every copy is
-preserved), is **RQ3 + RQ5: "copy-based reuse and security drift across
-variants"**, with RQ1 (agent authorship) as context. It is the analog of a
-supply-chain attack in an ecosystem without a registry, which the dataset
-authors themselves list as open.
+A 4-page paper fits about three well-executed RQs. The plan is
+**RQ1 + RQ3 + RQ5**:
+
+- **RQ1 (adoption and agent authorship)** sets the context: how big and how
+  fast the ecosystem is, and who writes skills. Keep it descriptive and short
+  so it leaves room for the other two.
+- **RQ3 (reuse)** uses the dataset's distinctive feature, that every copy is
+  preserved, to show how skills spread without a registry.
+- **RQ5 (security drift)** is the main contribution: whether edited copies of
+  popular skills add risky capabilities. It is the analog of a supply-chain
+  attack in an ecosystem without a registry, which the dataset authors list
+  as open.
+
+RQ2 and RQ4 are mostly descriptive or show small effects on the sample, so
+they are kept as secondary material.
 
 ## Next steps
 
