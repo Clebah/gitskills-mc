@@ -73,7 +73,7 @@ SCRIPT_EXTENSIONS = {
 COMPILED_TOOLS = {k: re.compile(v, re.IGNORECASE) for k, v in AGENT_TOOLS.items()}
 COMPILED_RISKS = {k: re.compile(v, re.IGNORECASE) for k, v in RISK_PATTERNS.items()}
 
-# Severity tiers and the closest CWE for each capability (used in RQ5 reporting).
+# why: RQ5 reports high-severity capabilities separately and names each by its closest CWE.
 # A capability is not a vulnerability: the CWE names the weakness class the
 # capability would enable if the skill were malicious or tampered with.
 RISK_SEVERITY: dict[str, str] = {
