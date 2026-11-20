@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gitskills"
+version = "0.1.0"
+description = "Analysis toolkit for the GitSkills dataset (MSR 2027 Mining Challenge)"
+requires-python = ">=3.10"
+dependencies = [
+  "pandas>=2.0",
+  "pyarrow>=14",
+  "matplotlib>=3.7",
+  "scipy>=1.10",
+  "pyyaml>=6.0",
+  "requests>=2.31",
+  "jinja2>=3.1",  # DataFrame.to_latex
+  "statsmodels>=0.14",
+]
+
+[project.optional-dependencies]
+hf = ["huggingface_hub>=0.23", "duckdb>=1.0"]
+nlp = ["langdetect>=1.0.9", "textstat>=0.7", "datasketch>=1.6"]
+notebooks = ["jupyterlab", "jupytext", "nbformat", "nbconvert", "ipykernel"]
+dev = ["pytest>=7"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
