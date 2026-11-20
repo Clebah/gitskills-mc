@@ -1,7 +1,7 @@
 PY ?= python
 DB ?= data/raw/agent_skills_sample.db
 
-.PHONY: install sample full parquet clean-data features eda analyses test
+.PHONY: install sample full parquet clean-data features eda analyses notebooks test
 
 install:            ## install package + extras in the current env
 	$(PY) -m pip install -e ".[dev,nlp,hf,notebooks]"
@@ -26,3 +26,7 @@ analyses: features eda  ## run every RQ script
 
 test:
 	$(PY) -m pytest -q
+
+notebooks:          ## regenerate and execute the Jupyter notebooks (needs `make features`)
+	$(PY) scripts/build_notebooks.py
+	cd notebooks && GITSKILLS_DB=$(abspath $(DB)) $(PY) -m jupyter nbconvert --to notebook --execute --inplace *.ipynb

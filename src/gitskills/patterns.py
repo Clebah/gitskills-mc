@@ -72,3 +72,23 @@ SCRIPT_EXTENSIONS = {
 
 COMPILED_TOOLS = {k: re.compile(v, re.IGNORECASE) for k, v in AGENT_TOOLS.items()}
 COMPILED_RISKS = {k: re.compile(v, re.IGNORECASE) for k, v in RISK_PATTERNS.items()}
+
+# Severity tiers and the closest CWE for each capability (used in RQ5 reporting).
+# A capability is not a vulnerability: the CWE names the weakness class the
+# capability would enable if the skill were malicious or tampered with.
+RISK_SEVERITY: dict[str, str] = {
+    "pipe_to_shell": "high", "safety_bypass": "high", "destructive_fs": "high", "dynamic_exec": "high",
+    "privilege": "medium", "secrets": "medium", "package_install": "medium",
+    "remote_fetch": "low", "git_push": "low",
+}
+RISK_CWE: dict[str, str] = {
+    "pipe_to_shell": "CWE-494 Download of Code Without Integrity Check",
+    "safety_bypass": "CWE-862 Missing Authorization",
+    "destructive_fs": "CWE-732 Incorrect Permission Assignment for Critical Resource",
+    "dynamic_exec": "CWE-95 Eval Injection / CWE-78 OS Command Injection",
+    "privilege": "CWE-250 Execution with Unnecessary Privileges",
+    "secrets": "CWE-522 Insufficiently Protected Credentials",
+    "package_install": "CWE-1357 Reliance on Insufficiently Trustworthy Component",
+    "remote_fetch": "CWE-829 Inclusion of Functionality from Untrusted Control Sphere",
+    "git_push": "CWE-284 Improper Access Control",
+}

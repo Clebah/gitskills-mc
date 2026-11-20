@@ -26,6 +26,7 @@ make install          # package + extras (nlp, hf, notebooks, dev)
 make sample           # official sample: 13k skills, 277 MB (same schema as the full dataset)
 make features         # cleaning + features -> data/processed/*.parquet
 make analyses         # EDA + RQ scripts -> results/tables, results/figures
+make notebooks        # generate and execute the Jupyter notebooks
 make test
 ```
 
@@ -52,7 +53,10 @@ src/gitskills/
 scripts/
   download.py         sample (GitHub) | full dataset (Zenodo) | Parquet (HF)
   build_features.py   writes data/processed/skills.parquet and occurrences.parquet
-analyses/             "percent"-format scripts (open as notebooks via jupytext)
+notebooks/            the narrated analysis, one notebook per methodology step:
+  01_data_and_cleaning  02_rq1_adoption_and_authorship  03_rq3_reuse
+  04_rq5_security_capabilities  05_validation_sample
+analyses/             the same analyses as plain scripts (batch runs)
   00_eda.py  rq1_adoption.py  rq2_shared_format.py  rq3_reuse.py
   rq4_description_quality.py  rq5_security.py
 tests/                synthetic database with the real schema + feature and pipeline tests
