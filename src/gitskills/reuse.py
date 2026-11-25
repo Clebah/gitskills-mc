@@ -111,3 +111,15 @@ def variant_drift(families: pd.DataFrame, risk_cols: list[str], family_col: str 
     if not out.empty:
         out["any_added"] = out.filter(like="added_").any(axis=1)
     return out
+
+
+RELIABLE_CAPABILITIES = ("pipe_to_shell", "package_install", "destructive_fs", "privilege")
+
+
+def drift_balance(drift: pd.DataFrame, caps) -> pd.DataFrame:
+    added = drift[[f"added_risk_{c}" for c in caps]].sum(axis=1)
+    removed = drift[[f"removed_risk_{c}" for c in caps]].sum(axis=1)
+    group = np.select(
+        [(added > 0) & (removed > 0), added > 0, removed > 0],
+        ["added and removed", "added only", "removed only"], default="unchanged")
+    return pd.DataFrame({"added": added, "removed": removed, "net": added - removed, "group": group})

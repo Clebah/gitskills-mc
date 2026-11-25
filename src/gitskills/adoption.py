@@ -41,3 +41,18 @@ def adopter_profile(occ: pd.DataFrame) -> pd.DataFrame:
     ).reset_index()
     prof["catalog_like"] = prof["n_skill_files"] >= 20  # heuristic: skill catalogs / collections
     return prof
+
+
+MAIN_ASSISTANTS = ("claude", "cursor", "copilot")
+
+
+def authorship_by_assistant(skills: pd.DataFrame) -> pd.DataFrame:
+    # hazard: "none" is not proof of manual writing; Co-authored-by trailers can be removed.
+    df = skills[skills["has_history"] & skills["first_month"].notna()]
+    df = df[df["first_commit_at"] >= pd.Timestamp(FORMAT_RELEASE, tz="UTC")]
+    ai = df["first_commit_ai"]
+    who = ai.where(ai.isin(MAIN_ASSISTANTS), "other assistant").where(ai.notna(), None)
+    who = who.fillna(df["first_commit_bot"].map({True: "bot"})).fillna("none")
+    out = pd.crosstab(df["first_month"], who)
+    cols = [*MAIN_ASSISTANTS, "other assistant", "bot", "none"]
+    return out.reindex(columns=cols, fill_value=0)
