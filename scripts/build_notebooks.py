@@ -1,6 +1,6 @@
 """Generate the Jupyter notebooks in notebooks/ (one per methodology step / RQ).
 
-    python scripts/build_notebooks.py          # writes notebooks/*.ipynb (no outputs)
+    python scripts/build_notebooks.py [02 ...]  # writes notebooks/*.ipynb (no outputs); optional prefixes
     jupyter nbconvert --to notebook --execute --inplace notebooks/*.ipynb
 
 The notebooks read data/processed/*.parquet, so run `make features` first.
@@ -176,6 +176,38 @@ print(f"first commit by an assistant or bot: {k:,}/{n:,} = {k/n:.1%} (95% CI {lo
 """by_month = h.groupby("first_month")["ai_first"].agg(skills="size", share="mean")
 ax = by_month["share"].plot(marker=".", figsize=(6, 2.6)); ax.set_ylabel("share assistant-authored"); plt.show()
 by_month""",
+"""md:## 2.3 Quem escreve as novas skills, mês a mês
+**Objetivo:** juntar as duas medidas anteriores em um só gráfico: o total de novas skills por mês (linha) e como esse total se divide entre skills sem assistente creditado, Claude e outros assistentes ou bots (barras). Como Cursor, Copilot e bots somam menos de 1% e sumiriam nas barras, o painel (b) mostra esses grupos na própria escala. Usamos só `canonical` (histórico completo), como em §2.1.
+
+**Atenção:** "sem assistente creditado" não significa escrita manual: o trailer `Co-authored-by` pode ter sido removido.""",
+"""auth = adoption.authorship_by_assistant(std)
+save_table(auth.reset_index(), "rq1_authorship_by_assistant_month")
+import matplotlib.ticker as mticker
+labels = [pd.Period(m).strftime("%b\\n%y") for m in auth.index]
+x = np.arange(len(auth))
+fig, (a, b) = plt.subplots(2, 1, figsize=(3.5, 3.3), sharex=True, gridspec_kw={"height_ratios": [2.2, 1]})
+others = auth[["cursor", "copilot", "other assistant", "bot"]].sum(axis=1)
+a.bar(x, auth["none"], color="#bdbdbd", label="No assistant credited")
+a.bar(x, auth["claude"], bottom=auth["none"], color="#d9772b", label="Claude")
+a.bar(x, others, bottom=auth["none"] + auth["claude"], color="#3b6fb6", label="Other assistants / bots")
+a.plot(x, auth.sum(axis=1), color="black", marker="o", ms=2.5, lw=1, label="Total new skills")
+a.set_ylabel("New distinct skills"); a.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v/1000:.0f}k"))
+a.legend(frameon=False, fontsize=6.5, loc="upper left"); a.set_title("(a) New skills per month by first-commit authorship", fontsize=8)
+for i, (col, c) in enumerate([("cursor", "#6a51a3"), ("copilot", "#2b8cbe"), ("bot", "#41ab5d"), ("other assistant", "#969696")]):
+    b.bar(x + (i - 1.5) * 0.2, auth[col], width=0.2, color=c, label={"other assistant": "Other"}.get(col, col.capitalize()))
+b.set_ylabel("Skills"); b.set_ylim(0, 680)
+b.legend(frameon=False, fontsize=6.5, ncol=4, loc="upper left", handlelength=1, columnspacing=1)
+b.set_title("(b) Assistants other than Claude (own scale)", fontsize=8)
+b.set_xticks(x); b.set_xticklabels(labels, fontsize=6.5)
+for ax in (a, b): ax.spines[["top", "right"]].set_visible(False)
+fig.tight_layout()
+for ext in ("pdf", "png"):
+    fig.savefig(ROOT / f"results/figures/rq1_authorship_by_month.{ext}", dpi=300, bbox_inches="tight")
+plt.show()
+share = 1 - auth["none"].sum() / auth.values.sum()
+print(f"canonical skills with an assistant or bot credited: {share:.1%}")
+auth""",
+"""md:**O que os dados mostram:** em `.claude/skills/`, **37,3%** das novas skills têm assistente ou bot creditado (acima dos 31,9% do conjunto geral). O Claude domina todos os meses. Os outros assistentes só aparecem a partir de fev/2026 e ficam abaixo de 500 skills por mês: Cursor tem picos em mai–jun/2026 e Copilot cresce a partir de mar/2026. Esta é a **Fig. 1** do artigo.""",
 """md:**O que os dados mostram:** a fração fica entre **29% e 40%** em todos os meses, sem tendência clara de queda ou alta. A autoria por agentes não é uma fase inicial: acompanha o crescimento do ecossistema.
 
 ## Conclusão da RQ1
@@ -318,7 +350,7 @@ prev""",
 * As mais frequentes no geral são de gravidade média: mencionar segredos (**17,6%**) e instalar pacotes (**11,9%**).
 * A exposição (por cópias) é um pouco **maior** que a prevalência em várias categorias (instalar pacotes: 11,9% → 15,0%): skills com essas capacidades tendem a ser mais copiadas.
 
-**Cuidado: estes números são detecções, não instruções confirmadas.** A validação do notebook 05 (pré-rotulagem de 12 trechos por categoria, ainda sem o segundo avaliador) mostra precisões muito diferentes entre categorias:
+**Cuidado: estes números são detecções, não instruções confirmadas.** A validação do notebook 05 (12 trechos por categoria, rotulados por dois avaliadores e decididos por consenso; κ = 0,75 na decisão instrução ou não) mostra precisões muito diferentes entre categorias:
 
 | Capacidade | Detectado | Precisão | Prevalência ajustada |
 |---|---|---|---|
@@ -356,6 +388,51 @@ mc""",
 * Nas categorias de baixa precisão (segredos, desligar confirmações), parte das "remoções" pode ser só uma **regra** do tipo "nunca use `--no-verify`" que sumiu do texto.
 
 Leitura: copiar e editar **não** torna as skills mais perigosas de forma geral; as cópias tendem a ser enxugadas. A forma mais direta de executar código remoto, `curl | sh`, é a que se acumula.""",
+"""md:## 4.2b Saldo por variante: as cópias ficam mais ou menos capazes?
+**Objetivo:** o McNemar olha uma capacidade de cada vez. Aqui juntamos todas num **saldo por variante**: (nº de capacidades da cópia) − (nº da referência). Com isso, cada variante cai num de quatro grupos: só acrescentou, só removeu, as duas coisas, nada mudou.
+
+**Teste de Wilcoxon (signed-rank):** verifica se os saldos diferentes de zero tendem a ser positivos (as cópias ganham capacidades) ou negativos (perdem). O tamanho do efeito é a correlação rank-biserial *r*, que vai de −1 (todas perdem) a +1 (todas ganham). Rodamos duas versões: com as 9 capacidades e **só com as 4 de detector confiável** (precisão ≥ 0,75 no notebook 05), para que a conclusão não dependa dos detectores ruins.""",
+"""from scipy.stats import wilcoxon
+rows, groups = [], {}
+for label, caps in [("all 9 capabilities", [c[5:] for c in risk_cols]), ("4 reliable detectors", list(reuse.RELIABLE_CAPABILITIES))]:
+    b = reuse.drift_balance(drift, caps)
+    groups[label] = b["group"].value_counts(normalize=True)
+    nz = b.loc[b["net"] != 0, "net"]
+    stat = wilcoxon(nz, zero_method="wilcox")
+    ranks = nz.abs().rank()
+    r_rb = (ranks[nz > 0].sum() - ranks[nz < 0].sum()) / ranks.sum()
+    rows.append({"capabilities": label, "variants": len(b), "net_nonzero": len(nz),
+                 "net_positive": int((nz > 0).sum()), "net_negative": int((nz < 0).sum()),
+                 "mean_net": b["net"].mean(), "wilcoxon_p": stat.pvalue, "rank_biserial_r": r_rb})
+bal = pd.DataFrame(rows)
+save_table(bal, "rq5_drift_balance_wilcoxon")
+grp = pd.DataFrame(groups).rename_axis("group").reset_index()
+save_table(grp, "rq5_drift_groups")
+display(grp.round(3))
+bal.round(4)""",
+"""md:**O que os dados mostram:**
+* Com as 9 capacidades: **68,5%** das variantes não mudam nenhuma capacidade, **14,3%** só removem, **13,6%** só acrescentam e **3,6%** fazem as duas coisas.
+* Entre as variantes cujo saldo muda, **118.457 perdem** e **112.652 ganham** capacidades (Wilcoxon p < 0,001), mas o efeito é **muito pequeno** (r = −0,05).
+* Só com os 4 detectores confiáveis: **86,1%** não mudam, 7,5% só removem, 6,2% só acrescentam; r = −0,10, também pequeno e na mesma direção.
+
+Leitura: copiar e editar **quase nunca muda** as capacidades de uma skill, e quando muda tende **levemente** a remover. Não há piora geral, mas também não há uma "limpeza" forte. O risco está em capacidades específicas (`curl | sh`, §4.2), não no saldo.""",
+"""md:## 4.2c Risco por popularidade
+**Objetivo:** responder a uma objeção natural: uma skill muito copiada é vista por mais gente e, por isso, talvez seja **mais segura**. Se for assim, revisar só as populares não basta. Dividimos as skills por faixa de cópias e medimos (1) a taxa de cada capacidade confiável e (2) que fatia das instalações com `curl | sh` cada faixa carrega.""",
+"""tiers = pd.cut(skills["copies"], [0, 1, 9, 99, np.inf], labels=["1", "2-9", "10-99", "100+"])
+rel = [f"risk_{c}" for c in reuse.RELIABLE_CAPABILITIES]
+pop = skills.groupby(tiers, observed=True).agg(skills=("file_sha", "size"), occurrences=("copies", "sum"),
+                                               **{c[5:]: (c, "mean") for c in rel})
+pop["share_of_occurrences"] = pop["occurrences"] / pop["occurrences"].sum()
+p2s = (skills["copies"] * skills["risk_pipe_to_shell"].fillna(False)).groupby(tiers, observed=True).sum()
+pop["share_of_pipe_to_shell_exposure"] = p2s / p2s.sum()
+save_table(pop.rename_axis("copies_tier").reset_index(), "rq5_risk_by_popularity")
+pop.round(4)""",
+"""md:**O que os dados mostram:**
+* As skills mais copiadas (100+ cópias) têm a **menor** taxa de `curl | sh` (0,33%, contra 0,63% nas nunca copiadas e **1,01%** nas com 10–99 cópias). Isso confirma a objeção: popularidade parece filtrar o pior.
+* Mas elas carregam só **4%** das instalações com `curl | sh`. Os outros 96% estão espalhados pelas skills pouco ou medianamente copiadas.
+* Instalar pacotes e pedir privilégio **crescem** com a popularidade (instalar pacotes: 11,6% → 20,7%): as skills famosas são ferramentas completas (`pdf`, `xlsx`) que instalam dependências.
+
+Leitura: revisar só as populares limita o alcance de uma falha numa skill famosa, mas deixa quase toda a exposição a `curl | sh` descoberta. A proteção precisa de verificação automática na cauda.""",
 """md:## 4.3 Que variantes acrescentam capacidades? (regressão logística)
 **Objetivo:** ir além da média e ver **que características** se associam a uma variante acrescentar capacidade.
 
@@ -372,6 +449,16 @@ odds = pd.DataFrame({"odds_ratio": np.exp(model.params), "ci_low": np.exp(model.
                      "ci_high": np.exp(model.conf_int()[1]), "p": model.pvalues})
 save_table(odds.reset_index(names="term"), "rq5_logit_odds_ratios")
 odds.round(3)""",
+"""d["family_code"] = d["family"].astype("category").cat.codes
+robust = smf.logit("added ~ log_ref_copies + log_family_size + cross_owner + has_scripts + ai_authored", data=d).fit(
+    disp=False, cov_type="cluster", cov_kwds={"groups": d["family_code"]})
+ci = np.exp(robust.conf_int())
+odds_cl = pd.DataFrame({"odds_ratio": np.exp(robust.params), "ci_low_cluster": ci[0], "ci_high_cluster": ci[1], "p_cluster": robust.pvalues})
+save_table(odds_cl.reset_index(names="term"), "rq5_logit_odds_ratios_cluster")
+print(f"McFadden pseudo-R2: {model.prsquared:.3f}")
+odds_cl.round(3)""",
+"""md:**Teste de robustez:** variantes da mesma família não são independentes, o que deixa os intervalos acima estreitos demais. Acima, os mesmos coeficientes com erros-padrão **agrupados por família** (*cluster-robust*): as razões de chances não mudam, só os intervalos.""",
+"""md:**O que os dados mostram:** com erros agrupados por família, os intervalos alargam cerca de 2 a 3 vezes, mas todas as conclusões se mantêm, **exceto** cópia entre donos: o IC passa a cruzar 1 (0,93–1,01), ou seja, **sem efeito**.""",
 """md:**O que os dados mostram:**
 * **Ter scripts** aumenta a chance de acrescentar capacidade em **46%** (OR 1,46).
 * **Ser escrita com assistente** aumenta em **22%** (OR 1,22).
@@ -387,7 +474,7 @@ odds.round(3)""",
 * A exceção confiável é **`curl | sh`**, que cresce nas cópias. A aparente alta da execução dinâmica é um artefato do detector ("eval" = avaliação).
 * Variantes com scripts ou escritas com assistente acrescentam capacidades com mais frequência.
 
-**Limitações:** (1) a precisão vem de uma pré-rotulagem de 108 trechos feita com apoio de um modelo de linguagem, ainda sem o segundo avaliador humano; (2) os detectores de segredos, execução dinâmica e desligar confirmações precisam ser refinados antes de os números dessas categorias irem para o artigo; (3) famílias agrupadas pelo nome juntam skills sem relação; (4) a referência é um proxy da original e, em muitas famílias, tem só 1 cópia ou empata com outras.
+**Limitações:** (1) a precisão vem de 12 trechos por categoria, então os intervalos são largos (cerca de ±25 pontos percentuais); o avaliador 1 foi uma pré-rotulagem com apoio de um modelo de linguagem, e o κ nos trechos rotulados às cegas é moderado (0,54); (2) os detectores de segredos, execução dinâmica e desligar confirmações têm precisão baixa, e os números dessas categorias são reportados com essa ressalva; (3) famílias agrupadas pelo nome juntam skills sem relação; (4) a referência é um proxy da original e, em muitas famílias, tem só 1 cópia ou empata com outras.
 
 **Próximo passo:** o notebook 05 mede quanto confiar nos detectores.""",
 ],
@@ -410,7 +497,7 @@ Se a maioria das detecções de uma categoria for menção, a prevalência daque
 
 **Etapas:** 5.1 sortear a amostra → 5.2 rotular à mão (trabalho humano, fora do notebook) → 5.3 calcular a precisão → 5.4 medir a concordância entre dois avaliadores → 5.5 ver o efeito nos números do notebook 04.
 
-**Este notebook não está quebrado: ele está à espera da rotulagem.** Enquanto a coluna `label` do CSV estiver vazia, as seções 5.3–5.5 mostram só o status. Elas se preenchem sozinhas quando o CSV for rotulado e o notebook rodar de novo.
+**Situação da rotulagem:** completa. `label` é a pré-rotulagem feita com apoio de um modelo de linguagem (avaliador 1), `label_2` é a rotulagem humana (avaliador 2) e `label_final` é o consenso depois de discutir as divergências. A precisão usa `label_final`; o κ compara `label` com `label_2`, antes da discussão. A coluna `rater2_blind` marca os 43 trechos que o avaliador 2 rotulou sem ver a `label`.
 
 ---
 
@@ -456,6 +543,8 @@ if "label_2" not in lab:
     lab["label_2"] = ""
 lab["label"] = lab["label"].str.strip().str.lower()
 lab["label_2"] = lab["label_2"].str.strip().str.lower()
+final = "label_final" if "label_final" in lab and (lab["label_final"] != "").all() else "label"
+print("precision computed from:", final)
 bad = lab[(lab["label"] != "") & ~lab["label"].isin(VALID)]
 done = lab[lab["label"].isin(VALID)]
 print(f"labelled: {len(done)}/{len(lab)} snippets" + (f"; {len(bad)} with an unknown label: {sorted(bad['label'].unique())}" if len(bad) else ""))
@@ -463,7 +552,7 @@ if done.empty:
     print("STATUS: waiting for manual labels (see 5.2). Precision cannot be computed yet.")
     prec = None
 else:
-    g = done.groupby("capability")["label"]
+    g = done.groupby("capability")[final]
     prec = pd.DataFrame({"labelled": g.size(), "instructs": g.apply(lambda s: int((s == "instructs").sum()))})
     prec["precision"] = prec["instructs"] / prec["labelled"]
     ci = [proportion_confint(k, n, method="wilson") for k, n in zip(prec["instructs"], prec["labelled"])]
@@ -482,7 +571,17 @@ else:
     pe = sum((both["label"] == c).mean() * (both["label_2"] == c).mean() for c in cats)
     kappa = (po - pe) / (1 - pe) if pe < 1 else float("nan")
     print(f"snippets rated twice: {len(both)}; raw agreement {po:.1%}; Cohen's kappa {kappa:.2f}")
-    display(pd.crosstab(both["label"], both["label_2"]))""",
+    display(pd.crosstab(both["label"], both["label_2"]))
+    def kappa_bin(df):
+        a, b = df["label"] == "instructs", df["label_2"] == "instructs"
+        po = (a == b).mean(); pe = a.mean() * b.mean() + (1 - a.mean()) * (1 - b.mean())
+        return po, (po - pe) / (1 - pe)
+    rows = [("all snippets", both)]
+    if "rater2_blind" in both:
+        rows.append(("rater 2 blind to label", both[both["rater2_blind"].astype(str) == "True"]))
+    display(pd.DataFrame([(n, len(df), *kappa_bin(df)) for n, df in rows],
+                         columns=["subset", "snippets", "agreement_instructs_vs_not", "kappa_instructs_vs_not"]).round(2))""",
+"""md:**O que os dados mostram:** nas três classes, κ = **0,66** (substancial). Quase todas as divergências separam `mentions` de `false_match`, por exemplo uma proibição como "never skip hooks", e as duas classes contam como **não** instrução, então não afetam a precisão. Na decisão que importa para a precisão (`instructs` ou não), κ = **0,75** nos 108 trechos e **0,54** (moderado) nos 43 rotulados às cegas. As 13 divergências binárias foram discutidas, e o consenso está em `label_final` (`validation_adjudication.xlsx`); ele mudou só uma precisão, a de `remote_fetch` (5/12 → 6/12).""",
 """md:## 5.5 Efeito nos números do notebook 04
 **Objetivo:** mostrar o que a precisão muda na prevalência. Prevalência ajustada ≈ prevalência detectada × precisão. Por exemplo, se 17,6% das skills disparam `secrets` e só metade das detecções é instrução real, a prevalência real de instruções que lidam com segredos é ~9%.""",
 """strict = skills
@@ -502,7 +601,11 @@ Este é o passo de **validação** da metodologia: transforma "a regex disparou"
 }
 
 if __name__ == "__main__":
+    import sys
     OUT.mkdir(exist_ok=True)
+    only = sys.argv[1:]
     for name, cells in NOTEBOOKS.items():
+        if only and not any(name.startswith(p) for p in only):
+            continue
         nbf.write(nb(cells), OUT / name)
         print("wrote", OUT / name)
